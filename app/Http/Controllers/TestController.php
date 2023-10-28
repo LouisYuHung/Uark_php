@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 class Controller extends Controller
 {
-    function index()
+    public function index()
     {
         return 'Hello World';
     }
