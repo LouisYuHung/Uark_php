@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TestController;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,4 +18,8 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('test', 'TestController@index');
+// Route::get('/ttttt', 'TestController@index');
+
+Route::get('/user/{id}', [TestController::class, 'show']);
+
+// Route::resource('/user/{id}', [TestController::class, 'show']);

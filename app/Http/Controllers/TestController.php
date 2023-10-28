@@ -10,4 +10,9 @@ class TestController extends Controller
     {
         return 'Hello World';
     }
+
+    public function show(string $id)
+    {
+        return ['id' => $id];
+    }
 }
