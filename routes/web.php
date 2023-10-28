@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\TestController;
+use App\Http\Controllers\AccountController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,6 +20,6 @@ Route::get('/', function () {
 
 // Route::get('/ttttt', 'TestController@index');
 
-Route::get('/user/{id}', [TestController::class, 'show']);
+Route::get('/user/{id}', [AccountController::class, 'create']);
 
 // Route::resource('/user/{id}', [TestController::class, 'show']);
