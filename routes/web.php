@@ -17,4 +17,4 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Route::
+Route::get('test', 'TestController@index');
