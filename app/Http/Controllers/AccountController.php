@@ -4,103 +4,103 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\App;
 
 class AccountController extends Controller
 {
-    public function index(Request $request)
+    public function verify(Request $request)
     {
-        $user_account = $request->input('user_account');
-        $user_password = $request->input('user_password');
-
-        $result = DB::connection('uark_php')->table(['users', 'status'])->select('org_id')->where('user_account', $user_account)->where('user_password', $user_password)->limit(1)->get();
-        if ($result->isEmpty()) {
-            return ['error' => '帳號或密碼錯誤'];
-        }
-
-        $org_no = $result[0]->org_no;
-        if ($org_no == '_') {
-            return view('create_org');
-        }
-
-        $status = $result[0]->status;
-        if ($status == '1') {
-            return ['error' => '帳號待審核中'];
-        }
-
-        return view('index', ['org_no' => $org_no]);
-    }
-
-    public function create_org(Request $request)
-    {
-        $org_no = $request->input('org_no');
-        $org_title = $request->input('title');
-
-        $result = DB::connection('uark_php')->table('orgs')->select('org_no')->where('org_no', $org_no)->get();
-        if ($result->isEmpty()) {
-            DB::connection('uark_php')->table('orgs')->insert(['org_no' => $org_no, 'title' => $org_title, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')]);
-        }
-
-        return view('login');
-    }
-
-    public function create_user(Request $request)
-    {
-        $org_no = $request->input('org_no');
-
-        $result = DB::connection('uark_php')->table('orgs')->select('org_no')->where('org_no', $org_no)->get();
-        if ($result->isEmpty()) {
-            DB::connection('uark_php')->table('orgs')->insert(['org_no' => $org_no, 'title' => 'test', 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s')]);
-        }
-
-        $user_name = $request->input('name');
-        $user_birthday = $request->input('birthday');
-        $user_email = $request->input('email');
-        $user_account = $request->input('account');
+        $user_account = $request->input('username');
         $user_password = $request->input('password');
-        $user_file_upload = $request->input('file_path');
 
-        try {
-            if ($user_name == null || $user_name == '') {
-                throw new \Exception('user_name is null');
+        Session::put('account', $user_account);
+
+        $result = DB::connection('uark_php')->table('users')->select(['status', 'password'])->where('account', $user_account)->limit(1)->get();
+
+        if ($result->isEmpty()) {
+            return redirect('/create_user');
+        } else {
+            $status = $result[0]->status;
+            $password = $result[0]->password;
+
+            if ($password != $user_password) {
+                Session::put('status', -1);
+            } else {
+                Session::put('status', $status);
             }
 
-            if ($user_email == null || $user_email == '') {
-                throw new \Exception('user_email is null');
+            if ($status > 1 && $password == $user_password) {
+                return redirect('/home');
+            } else {
+                return redirect('/review');
             }
+        }
+    }
 
-            if ($user_account == null || $user_account == '') {
-                throw new \Exception('user_account is null');
-            }
+    public function logout(Request $request)
+    {
+        Session::flush();
+        return redirect('/login');
+    }
 
-            if ($user_password == null || $user_password == '') {
-                throw new \Exception('user_password is null');
-            }
+    public function createOrg(Request $request)
+    {
+        $org_no = $request->input('org_no');
+        $title = $request->input('title');
 
-            if ($user_file_upload == null || $user_file_upload == '') {
-                throw new \Exception('user_file_upload is null');
-            }
-        } catch (\Exception $e) {
-            return ['error' => $e->getMessage()];
+        $result = DB::connection('uark_php')->table('orgs')->select('org_no')->where('org_no', $org_no)->get();
+        if ($result->isEmpty() == false) {
+            Session::put('message', Lang::get('messages.org_no') . Lang::get('messages.exist'));
+            return redirect('/create_org/result');
+        }
+
+        $result = DB::connection('uark_php')->table('orgs')->select('title')->where('title', $title)->get();
+        if ($result->isEmpty() == false) {
+            Session::put('message', Lang::get('messages.org_name') . Lang::get('messages.exist'));
+            return redirect('/create_org/result');
+        }
+
+        DB::connection('uark_php')->table('orgs')->insert(['org_no' => $org_no, 'title' => $title, 'created_at' => date('Y-m-d H:i:s'), 'updated_at' => date('Y-m-d H:i:s'), 'status' => 1]);
+
+        Session::put('message', Lang::get('messages.org_no') . ": " . $org_no . ", " . Lang::get('messages.org_name') . ": " . $title . Lang::get('messages.create') . Lang::get('messages.success'));
+        return redirect('/create_org/result');
+    }
+
+    public function createUser(Request $request)
+    {
+        $user_account = $request->input('account');
+
+        $check = DB::connection('uark_php')->table('users')->select('account')->where('account', $user_account)->get();
+        if ($check->isEmpty() == false) {
+            Session::put('message', Lang::get('messages.account') . Lang::get('messages.exist'));
+            return redirect('/create_user/result');
         }
 
         DB::connection('uark_php')->table('users')
             ->insert([
-                'org_no' => $org_no,
-                'name' => $user_name,
-                'birthday' => $user_birthday,
-                'email' => $user_email,
+                'org_id' => $request->input('org'),
+                'name' => $request->input('name'),
+                'birthday' => $request->input('birthday'),
+                'email' => $request->input('email'),
                 'account' => $user_account,
-                'password' => $user_password,
-                'file_path' => $user_file_upload,
-                'user_status' => '1', // 0: 刪除 1: 待審 2: 使用中
+                'password' => $request->input('password'),
+                'status' => '1', // 0: 刪除 1: 待審 2: 使用中
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s')
             ]);
 
-        return ['success' => 'success'];
+        $user_id = DB::connection('uark_php')->table('users')->select('id')->where('account', $user_account)->get()[0]->id;
+        DB::connection('uark_php')->table('apply_file')
+            ->insert([
+                'user_id' => $user_id,
+                'file_path' => $request->input('file_path'),
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+
+        Session::put('message', Lang::get('messages.account') . ": " . $user_account . Lang::get('messages.create') . Lang::get('messages.success'));
+        return redirect('/create_user/result');
     }
-
-
-    //     return ['id' => $id];
-    // }
 }
